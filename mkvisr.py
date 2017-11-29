@@ -31,6 +31,7 @@ def probe_streams(obj):
     '''
     returns dictionary with each stream element
     e.g. {"0.pix_fmt":"yuv420p10le"}
+    e.g. streams["0.codec_name"] returns libx264 (or w/e)
     '''
     streams = {}
     ffstr = "ffprobe -show_streams -of flat " + obj
@@ -42,14 +43,23 @@ def probe_streams(obj):
         key = key.replace("streams.stream.","")
         streams[str(key)] = value
     if streams:
-        return streams
+        count = 0
+        numberofstreams = []
+        for stream in streams:
+            if stream[0] in numberofstreams:
+                pass
+            else:
+                numberofstreams.append(str(count))
+                count = count + 1
+                streams['numberofstreams'] = numberofstreams
+                return streams
     else:
         print _out[1]
         return False
 
-def go(ffstr):
+def ffgo(ffstr):
 	'''
-	runs ffmpeg, returns true is success, error is fail
+	runs ffmpeg, returns true if success, error is fail
 	'''
 	try:
 		returncode = subprocess.check_output(ffstr)
@@ -59,21 +69,38 @@ def go(ffstr):
 		print returncode
 	return returncode
 
+def make_paths(kwargs):
+    '''
+    defines input and output paths for the file
+    stores them in kwargs.input and kwargs.output
+    '''
+    kwargs.input.fname, kwargs.input.ext = os.path.splitext(os.path.basename(kwargs.input.fullpath))
+    kwargs.input.dirname = os.path.dirname(kwargs.input.fullpath)
+    if kwargs.output is None:
+        kwargs.output = dotdict({"fullpath":os.path.join(kwargs.input.dirname, kwargs.input.fname + ".mkv")})
+    elif os.path.isdir(kwargs.output):
+        dirname = kwargs.output
+        kwargs.output = dotdict({"dirname":dirname, "fname":kwargs.input.fname})
+        kwargs.output.fullpath = os.path.join(kwargs.output.dirname, kwargs.output.fname + ".mkv")
+    else:
+        if not kwargs.output.endswith(".mkv"):
+            print "Buddy, you specified an output file without the .mkv extension"
+            print "We can't process it"
+            return False
+        if not os.path.dirname(kwargs.output):
+            fp = os.path.join(kwargs.input.dirname, kwargs.output)
+        else:
+            fp = os.path.join(os.getcwd(), kwargs.output)
+        kwargs.output = dotdict({"fullpath":fp})
+    return kwargs
+
 def process(kwargs):
     '''
     processes a single file
     '''
     print "Processing " + kwargs.input.fullpath
-    kwargs.input.fname, kwargs.input.ext = os.path.splitext(os.path.basename(kwargs.input.fullpath))
-    kwargs.input.dirname = os.path.dirname(kwargs.input.fullpath)
-    if kwargs.output is None:
-        kwargs.output = dotdict({"fullpath":os.path.join(kwargs.input.dirname, kwargs.input.fname, ".mkv")})
-    elif os.path.isdir(kwargs.output):
-        dirname = kwargs.output
-        kwargs.output = dotdict({"dirname":dirname, "fname":kwargs.input.fname})
-        kwargs.output.fullpath = os.path.join(kwargs.output.dirname, kwargs.output.fname, ".mkv")
-    else:
-        kwargs.output = dotdict({"fullpath"})
+    kwargs = make_paths(kwargs)
+    print kwargs.output.fullpath
     return True
 
 def init_args():
@@ -114,6 +141,7 @@ def main():
             print fp
             sys.exit()
         itWorked = process(dotdict({"input":dotdict({"fullpath":fp}), "output":args.o}))
-
+    if itWorked is not True:
+        print "mkvisr encountered an error"
 if __name__ == '__main__':
     main()
