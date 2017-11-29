@@ -83,16 +83,81 @@ def make_paths(kwargs):
         kwargs.output = dotdict({"dirname":dirname, "fname":kwargs.input.fname})
         kwargs.output.fullpath = os.path.join(kwargs.output.dirname, kwargs.output.fname + ".mkv")
     else:
+        dirname = kwargs.output
+        '''while not os.path.exists(dirname):
+            dirname = os.path.dirname(dirname)
+        if dirname == '/' or not dirname:'''
         if not kwargs.output.endswith(".mkv"):
             print "Buddy, you specified an output file without the .mkv extension"
             print "We can't process it"
-            return False
+            sys.exit()
         if not os.path.dirname(kwargs.output):
             fp = os.path.join(kwargs.input.dirname, kwargs.output)
         else:
             fp = os.path.join(os.getcwd(), kwargs.output)
         kwargs.output = dotdict({"fullpath":fp})
     return kwargs
+
+def detect_pal(streams):
+    '''
+    returns true if PAL, false if NTSC
+    '''
+    h = ''
+    for stream in streams["numberofstreams"]:
+        if streams[stream + ".codec_type"] == '"video"':
+            print "foo"
+            h = streams[stream + ".height"]
+    if not h:
+        print "Buddy, we couldn't detect the height of that video"
+        sys.exit()
+    else:
+        if h == "486" or h == "480" or h == "243" or h == "240":
+            return False
+        elif h == "576":
+            return True
+        else:
+            print "Buddy, we can't determine the broadcast standard for this file"
+            print "We can only handle NTSC and PAL"
+            sys.exit()
+
+def make_ffstr(kwargs, streams):
+    '''
+    generates the ffmpeg string for transocding the file
+    '''
+    '''
+    NTSC
+    ffmpeg -i input_file -map 0 -dn -c:v ffv1 -level 3 -g 1 -slicecrc 1 -slices 24 -field_order bb
+    -vf setfield=bff,setdar=4/3 -color_primaries smpte170m -color_trc bt709 -colorspace smpte170m
+    -color_range mpeg -c:a copy output_file.mkv
+    PAL
+    ffmpeg -i input_file -map 0 -dn -c:v ffv1 -level 3 -g 1 -slicecrc 1 -slices 24 -field_order bt
+    -vf setfield=tff,setdar=4/3 -color_primaries bt470bg -color_trc bt709 -colorspace bt470bg
+    -color_range mpeg -c:a copy output_file.mkv
+    '''
+    ffstr = "ffmpeg"
+    _ff = ["-i","-map","-dn","-c:v","-level","-g","-slicecrc","-slices","-field_order","-vf","-color_primaries",
+            "-color_trc", "-colorspace", "-color_range", "-c:a"]
+    ff = dotdict({"i":kwargs.input.fullpath, "map":"0", "c:v":"ffv1", "level":"3", "g":"1",
+            "slicecrc":"1", "slices":"24", "color_trc":"bt709", "color_range":"mpeg", "c:a":"copy"})
+    pal = detect_pal(streams)
+    if pal is True:
+        ff.field_order = "bt"
+        ff.vf = "setfield=tff,setdar=4/3"
+        ff.color_primaries = "bt470bg"
+        ff.colorspace = "bt470bg"
+    else:
+        ff.field_order = "bb"
+        ff.vf = "setfield=bff,setdar=4/3"
+        ff.color_primaries = "smpte170m"
+        ff.colorspace = "smpte170m"
+    for f in _ff:
+        key = f.replace('-','')
+        if key in ff:
+            ffstr = ffstr + ' ' + f + ' ' + ff[key]
+        else:
+            ffstr = ffstr + ' ' + f
+    ffstr = ffstr + ' ' + kwargs.output.fullpath
+    return ffstr
 
 def process(kwargs):
     '''
@@ -101,16 +166,22 @@ def process(kwargs):
     print "Processing " + kwargs.input.fullpath
     kwargs = make_paths(kwargs)
     streams = probe_streams(kwargs.input.fullpath)
-    for stream in streams["numberofstreams"]:
+    '''for stream in streams["numberofstreams"]:
         print stream
         print streams[stream + ".codec_name"]
-    '''for attr in streams:
+    for attr in streams:
         print attr
         print streams[attr]
     for stream in streams['numberofstreams']:
         for attr in streams:
             print streams[attr]'''
+
     print "Outputting to " +kwargs.output.fullpath
+    ffstr = make_ffstr(kwargs, streams)
+    print ffstr
+    #ffWorked = ffgo(ffstr)
+    #if ffWorked is not True:
+    #   ERROR
     return True
 
 def init_args():
@@ -128,14 +199,7 @@ def init_args():
 
 def main():
     '''
-    NTSC
-    ffmpeg -i input_file -map 0 -dn -c:v ffv1 -level 3 -g 1 -slicecrc 1 -slices 24 -field_order bb
-    -vf setfield=bff,setdar=4/3 -color_primaries smpte170m -color_trc bt709 -colorspace smpte170m
-    -color_range mpeg -c:a copy output_file.mkv
-    PAL
-    ffmpeg -i input_file -map 0 -dn -c:v ffv1 -level 3 -g 1 -slicecrc 1 -slices 24 -field_order bt
-    -vf setfield=tff,setdar=4/3 -color_primaries bt470bg -color_trc bt709 -colorspace bt470bg
-    -color_range mpeg -c:a copy output_file.mkv
+    do the thing
     '''
     args = init_args()
     if os.path.isdir(args.i):
