@@ -20,8 +20,10 @@ python mkvisr.py -i /path/to/file.mxf -o /path/to/output.mkv
 
 ## for more info see:
 
-[matroska website](https://matroska.org/)
+[matroska dev](https://github.com/Matroska-Org/matroska-specification)
 
-[ffv1 wikipedia](https://en.wikipedia.org/wiki/FFV1)
+[ffv1 dev](https://github.com/ffmpeg/FFV1)
+
+[flac dev](https://github.com/xiph/FLAC)
 
 [LoC sustainability docs](https://www.loc.gov/preservation/digital/formats/fdd/video_fdd.shtml)
