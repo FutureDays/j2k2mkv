@@ -62,7 +62,7 @@ def ffgo(ffstr):
 	runs ffmpeg, returns true if success, error is fail
 	'''
 	try:
-		returncode = subprocess.check_output(ffstr)
+		returncode = subprocess.check_output(ffstr, shell=True)
 		returncode = True
 	except subprocess.CalledProcessError, e:
 		returncode = e.returncode
@@ -105,7 +105,6 @@ def detect_pal(streams):
     h = ''
     for stream in streams["numberofstreams"]:
         if streams[stream + ".codec_type"] == '"video"':
-            print "foo"
             h = streams[stream + ".height"]
     if not h:
         print "Buddy, we couldn't detect the height of that video"
@@ -119,6 +118,18 @@ def detect_pal(streams):
             print "Buddy, we can't determine the broadcast standard for this file"
             print "We can only handle NTSC and PAL"
             sys.exit()
+
+def detect_j2k(streams):
+    '''
+    detect j2k files
+    generally these are half-height files
+    i.e. frames are actually fields, 59.94, but we ~want~ 29.97 full-height
+    '''
+    for stream in streams["numberofstreams"]:
+        if streams[stream + ".codec_type"] == '"video"':
+            if streams[stream + ".codec_name"] == '"jpeg2000"':
+                return True
+    return False
 
 def make_ffstr(kwargs, streams):
     '''
@@ -150,6 +161,9 @@ def make_ffstr(kwargs, streams):
         ff.vf = "setfield=bff,setdar=4/3"
         ff.color_primaries = "smpte170m"
         ff.colorspace = "smpte170m"
+    j2k = detect_j2k(streams)
+    if j2k is True:
+        ff.vf = "weave," + ff.vf
     for f in _ff:
         key = f.replace('-','')
         if key in ff:
@@ -163,8 +177,8 @@ def process(kwargs):
     '''
     processes a single file
     '''
-    print "Processing " + kwargs.input.fullpath
     kwargs = make_paths(kwargs)
+    print "Processing " + kwargs.input.fullpath
     streams = probe_streams(kwargs.input.fullpath)
     '''for stream in streams["numberofstreams"]:
         print stream
@@ -175,11 +189,10 @@ def process(kwargs):
     for stream in streams['numberofstreams']:
         for attr in streams:
             print streams[attr]'''
-
-    print "Outputting to " +kwargs.output.fullpath
     ffstr = make_ffstr(kwargs, streams)
-    print ffstr
-    #ffWorked = ffgo(ffstr)
+    #print ffstr
+    print "Outputting to " + kwargs.output.fullpath
+    ffWorked = ffgo(ffstr)
     #if ffWorked is not True:
     #   ERROR
     return True
