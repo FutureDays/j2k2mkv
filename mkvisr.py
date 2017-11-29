@@ -35,7 +35,7 @@ def probe_streams(obj):
     '''
     streams = {}
     ffstr = "ffprobe -show_streams -of flat " + obj
-    output = subprocess.Popen(ffstr, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+    output = subprocess.Popen(ffstr, stdout=subprocess.PIPE, stderr=subprocess.PIPE, shell=True)
     _out = output.communicate()
     out = _out[0].splitlines()
     for o in out:
@@ -51,8 +51,8 @@ def probe_streams(obj):
             else:
                 numberofstreams.append(str(count))
                 count = count + 1
-                streams['numberofstreams'] = numberofstreams
-                return streams
+        streams['numberofstreams'] = numberofstreams
+        return streams
     else:
         print _out[1]
         return False
@@ -100,7 +100,17 @@ def process(kwargs):
     '''
     print "Processing " + kwargs.input.fullpath
     kwargs = make_paths(kwargs)
-    print kwargs.output.fullpath
+    streams = probe_streams(kwargs.input.fullpath)
+    for stream in streams["numberofstreams"]:
+        print stream
+        print streams[stream + ".codec_name"]
+    '''for attr in streams:
+        print attr
+        print streams[attr]
+    for stream in streams['numberofstreams']:
+        for attr in streams:
+            print streams[attr]'''
+    print "Outputting to " +kwargs.output.fullpath
     return True
 
 def init_args():
@@ -108,20 +118,24 @@ def init_args():
     initialize arguments from CLI
     '''
     parser = argparse.ArgumentParser(description="transcodes from j2k to ffvi")
-    #parser.add_argument('-m',dest='m',choices=['batch','single'],default=False,help='mode, for processing a single transfer or a batch in new_ingest')
     parser.add_argument('-i', '--input', dest='i', help="the input filepath")
     parser.add_argument('-o', '--output', dest='o', default=None, help="the output path")
     args = parser.parse_args()
     args.i = args.i.replace("\\", "/")
-    args.o = args.o.replace("\\", "/")
+    if args.o:
+        args.o = args.o.replace("\\", "/")
     return args
 
 def main():
     '''
     NTSC
-    ffmpeg -i input_file -map 0 -dn -c:v ffv1 -level 3 -g 1 -slicecrc 1 -slices 24 -field_order bb -vf setfield=bff,setdar=4/3 -color_primaries smpte170m -color_trc bt709 -colorspace smpte170m -color_range mpeg -c:a copy output_file.mkv
+    ffmpeg -i input_file -map 0 -dn -c:v ffv1 -level 3 -g 1 -slicecrc 1 -slices 24 -field_order bb
+    -vf setfield=bff,setdar=4/3 -color_primaries smpte170m -color_trc bt709 -colorspace smpte170m
+    -color_range mpeg -c:a copy output_file.mkv
     PAL
-    ffmpeg -i input_file -map 0 -dn -c:v ffv1 -level 3 -g 1 -slicecrc 1 -slices 24 -field_order bt -vf setfield=tff,setdar=4/3 -color_primaries bt470bg -color_trc bt709 -colorspace bt470bg  -color_range mpeg -c:a copy output_file.mkv
+    ffmpeg -i input_file -map 0 -dn -c:v ffv1 -level 3 -g 1 -slicecrc 1 -slices 24 -field_order bt
+    -vf setfield=tff,setdar=4/3 -color_primaries bt470bg -color_trc bt709 -colorspace bt470bg
+    -color_range mpeg -c:a copy output_file.mkv
     '''
     args = init_args()
     if os.path.isdir(args.i):
