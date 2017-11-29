@@ -1,22 +1,13 @@
 #!/usr/bin/env/python
+'''
+turns your crap files into ffv1 mkv
+'''
+
 import os
 import re
 import sys
 import argparse
 import subprocess
-
-class cd:
-    '''
-    Context manager for changing the current working directory
-    '''
-    def __init__(self, newPath):
-        self.newPath = os.path.expanduser(newPath)
-    def __enter__(self):
-        self.savedPath = os.getcwd()
-        os.chdir(self.newPath)
-    def __exit__(self, etype, value, traceback):
-        os.chdir(self.savedPath)
-
 
 class dotdict(dict):
     '''
@@ -25,7 +16,6 @@ class dotdict(dict):
     __getattr__ = dict.get
     __setattr__ = dict.__setitem__
     __delattr__ = dict.__delitem__
-
 
 def probe_streams(obj):
     '''
@@ -83,14 +73,19 @@ def make_paths(kwargs):
         kwargs.output = dotdict({"dirname":dirname, "fname":kwargs.input.fname})
         kwargs.output.fullpath = os.path.join(kwargs.output.dirname, kwargs.output.fname + ".mkv")
     else:
-        dirname = kwargs.output
-        '''while not os.path.exists(dirname):
-            dirname = os.path.dirname(dirname)
-        if dirname == '/' or not dirname:'''
         if not kwargs.output.endswith(".mkv"):
-            print "Buddy, you specified an output file without the .mkv extension"
-            print "We can't process it"
-            sys.exit()
+            dirname = kwargs.output
+            while not os.path.dirname(dirname):
+                dirname = os.path.dirname(dirname)
+                if not dirname:
+                    break
+            if dirname == '/' or not dirname:
+                print "Buddy, you specified an output file without the .mkv extension"
+                print "Or you specified an invalid output path"
+                print "mkvisr is quitting"
+                sys.exit()
+            else:
+                os.makedirs(os.path.join(kwargs.input.dirname, kwargs.output, kwargs.input.fname + ".mkv"))
         if not os.path.dirname(kwargs.output):
             fp = os.path.join(kwargs.input.dirname, kwargs.output)
         else:
@@ -133,7 +128,7 @@ def detect_j2k(streams):
 
 def make_ffstr(kwargs, streams):
     '''
-    generates the ffmpeg string for transocding the file
+    generates the ffmpeg string for transcoding the file
     '''
     '''
     NTSC
@@ -190,7 +185,7 @@ def process(kwargs):
         for attr in streams:
             print streams[attr]'''
     ffstr = make_ffstr(kwargs, streams)
-    #print ffstr
+    print ffstr
     print "Outputting to " + kwargs.output.fullpath
     ffWorked = ffgo(ffstr)
     #if ffWorked is not True:
@@ -234,5 +229,6 @@ def main():
         itWorked = process(dotdict({"input":dotdict({"fullpath":fp}), "output":args.o}))
     if itWorked is not True:
         print "mkvisr encountered an error"
+
 if __name__ == '__main__':
     main()
