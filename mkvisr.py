@@ -31,7 +31,7 @@ def probe_streams(obj):
     for o in out:
         key, value = o.split("=")
         key = key.replace("streams.stream.","")
-        streams[str(key)] = value
+        streams[str(key)] = str(value.replace('"','').replace("'",""))
     if streams:
         count = 0
         numberofstreams = []
@@ -99,7 +99,7 @@ def detect_pal(streams):
     '''
     h = ''
     for stream in streams["numberofstreams"]:
-        if streams[stream + ".codec_type"] == '"video"':
+        if streams[stream + ".codec_type"] == 'video':
             h = streams[stream + ".height"]
     if not h:
         print "Buddy, we couldn't detect the height of that video"
@@ -121,8 +121,8 @@ def detect_j2k(streams):
     i.e. frames are actually fields, 59.94, but we ~want~ 29.97 full-height
     '''
     for stream in streams["numberofstreams"]:
-        if streams[stream + ".codec_type"] == '"video"':
-            if streams[stream + ".codec_name"] == '"jpeg2000"':
+        if streams[stream + ".codec_type"] == 'video':
+            if streams[stream + ".codec_name"] == 'jpeg2000':
                 return True
     return False
 
